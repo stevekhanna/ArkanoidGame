@@ -10,7 +10,6 @@
 .global SNESmain
 .global	getGpioPtr
 
-
 SNESmain:
 		push	{r1, lr}
 		ldr		r0,	=names										@Load creator names
@@ -32,7 +31,7 @@ SNESmain:
 		mov		r0,	#11											@GPIO pin 11 (Clock) passed as a param
 		mov		r1,	#1											@Function code for output
 		bl		InitGPIO
-
+.global request
 @User prompt to press a button
 request:		
 		ldr		r0,	=pressButton
@@ -115,6 +114,7 @@ stop:
 @the subroutine initializes a GPIO line,
 @the line number and function code must be passed
 @as parameters. The subroutine needs to be general
+.global InitGPIO
 InitGPIO:
 		push 	{r4, r6, r7, r8}
 		mov		r4,	r0											@r4: 1st arg
@@ -178,6 +178,7 @@ Read_Data:
 		movne	r0,	#1											@ return 1
 		mov		pc, lr
 		
+.global Read_SNES
 @main SNES subroutine that reads input(buttons pressed) from a SNES controller. Returns the code of a pressed button in a register
 Read_SNES:
 		push 	{r5, r6, lr}
@@ -214,56 +215,95 @@ pulseLoop:
 printB:
 		ldr		r0,	=butB
 		bl		printf
-		b		request
+		b		checkButtons
 printY:
 		ldr		r0,	=butY
 		bl		printf
-		b		request
+		b		checkButtons
 printSelect:
 		ldr		r0,	=butSelect
 		bl		printf
-		b		request
+		b		checkButtons
 printUp:
 		ldr		r0,	=butUp
 		bl		printf
-		b		request
+		b		checkButtons
 printDown:
 		ldr		r0,	=butDown
 		bl		printf
-		b		request
+		b		checkButtons
 printLeft:
 		ldr		r0,	=butLeft
 		bl		printf
-		b		request
+		b		checkButtons
 printRight:
 		ldr		r0,	=butRight
 		bl		printf
-		b		request
+		b		checkButtons
 printA:
 		ldr		r0,	=butA
 		bl		printf
-		b		request
+		b		checkButtons
 printX:
 		ldr		r0,	=butX
 		bl		printf
-		b		request
+		b		checkButtons
 printLb:
 		ldr		r0,	=butLb
 		bl		printf
-		b		request
+		b		checkButtons
 printRb:
 		ldr		r0,	=butRb
 		bl		printf
-		b		request
+		b		checkButtons
 printEnd:
 		ldr		r0,	=end
 		bl		printf
+		
 		mov		r0, r6
 		pop		{r1, pc}
+		
+.globl initGPIO
+initGPIO:
+        push {lr}
+        
+        bl		getGpioPtr										@getting GPIO address	
+		ldr		r1,	=gpioBaseAddress							@Base address
+		str		r0,	[r1]
+
+        mov     r0, #9                          // Initializes pin 9 (Latch) to output
+        bl      InitGPIO                           
+        mov     r0, #10                         // Initializes pin 10 (Data) to input
+        bl      InitGPIO                       
+        mov     r0, #11                         // Initializes pin 11 (Clock) to output
+        bl      InitGPIO        
+
+        pop {lr} 
+
+        mov pc, lr
+
+@ reads button from snes controller
+.global checkButtons
+checkButtons:
+		push	{r4-r11, lr}
+delayy:	
+		bl		Read_SNES										@Calls the function
+		mov		r7,	r0											@Copy of returned val from func
+		mov		r0,	#30000										@Delays 60000 us
+		bl		delayMicroseconds		
+		@bl		Read_SNES
+		@cmp		r7, r0											@Checks if two buttons are pressed simulataneously
+		@bne		delayy						
+								
+checkdone:	
+		mov		r0,	r7
+		pop		{r4-r11, pc}
 
 
 @ Data section
 .section    .data
+
+.global gpioBaseAddress
 gpioBaseAddress:
 .int		0
 names:
